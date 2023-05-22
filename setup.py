@@ -4,7 +4,7 @@ except ImportError:
     from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
-from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension
+#from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension
 import numpy
 
 
@@ -85,8 +85,5 @@ ext_modules = [
 ]
 
 setup(
-    ext_modules=cythonize(ext_modules),
-    cmdclass={
-        'build_ext': BuildExtension
-    }
+    ext_modules=cythonize(ext_modules)
 )

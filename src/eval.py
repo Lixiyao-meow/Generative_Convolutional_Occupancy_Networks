@@ -81,13 +81,12 @@ class MeshEvaluator(object):
 
         out_dict = self.eval_pointcloud(
             pointcloud, pointcloud_tgt, normals, normals_tgt)
-
+        
         if len(mesh.vertices) != 0 and len(mesh.faces) != 0:
             occ = check_mesh_contains(mesh, points_iou)
             out_dict['iou'] = compute_iou(occ, occ_tgt)
         else:
             out_dict['iou'] = 0.
-
         return out_dict
 
     def eval_pointcloud(self, pointcloud, pointcloud_tgt,

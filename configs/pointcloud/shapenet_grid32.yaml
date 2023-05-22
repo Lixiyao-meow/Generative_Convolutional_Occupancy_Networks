@@ -33,11 +33,11 @@ training:
   model_selection_metric: iou
   model_selection_mode: maximize
   print_every: 100
-  visualize_every: 10000
-  validate_every: 10000
-  checkpoint_every: 2000
+  visualize_every: 100
+  validate_every: 100
+  checkpoint_every: 20
   backup_every: 10000
-  n_workers: 8
+  n_workers: 4
   n_workers_val: 4
 test:
   threshold: 0.2
