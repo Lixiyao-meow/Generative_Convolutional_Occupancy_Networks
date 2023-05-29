@@ -64,6 +64,15 @@ class LocalPoolPointnet(nn.Module):
             self.scatter = scatter_mean
         else:
             raise ValueError('incorrect scatter type')
+        
+        # VAE encoder
+                
+        h_dim = 32 * 8 * 8 * 8
+        z_dim = 1024
+        self.global_pooling = nn.AdaptiveAvgPool3d(8)
+        self.flatten = nn.Flatten(start_dim=1)
+        self.encode_mean = nn.Linear(h_dim, z_dim)
+        self.encode_std = nn.Linear(h_dim, z_dim)
 
 
     def generate_plane_features(self, p, c, plane='xz'):
@@ -94,8 +103,15 @@ class LocalPoolPointnet(nn.Module):
 
         if self.unet3d is not None:
             fea_grid = self.unet3d(fea_grid)
-
-        return fea_grid
+        
+        # VAE Gaussian distribution parameters
+        x = self.global_pooling(fea_grid)
+        x = self.flatten(x)
+        
+        mean = self.encode_mean(x)
+        std = self.encode_std(x)
+        
+        return mean, std #fea_grid
 
     def pool_local(self, xy, index, c):
         bs, fea_dim = c.size(0), c.size(2)

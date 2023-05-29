@@ -28,15 +28,15 @@ model:
     hidden_size: 32
   c_dim: 32
 training:
-  out_dir: out/pointcloud/shapenet_grid32
+  out_dir: out/VAE #pointcloud/shapenet_grid32
   batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
-  print_every: 100
-  visualize_every: 100
+  print_every: 20
+  visualize_every: 1000
   validate_every: 100
-  checkpoint_every: 20
-  backup_every: 10000
+  checkpoint_every: 200
+  backup_every: 2000
   n_workers: 4
   n_workers_val: 4
 test:

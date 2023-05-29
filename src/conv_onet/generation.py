@@ -86,7 +86,7 @@ class Generator3D(object):
             inputs = add_key(inputs, data.get('inputs.ind'), 'points', 'index', device=device)
             t0 = time.time()
             with torch.no_grad():
-                c = self.model.encode_inputs(inputs)
+                c = self.model.encoder(inputs)
         stats_dict['time (encode inputs)'] = time.time() - t0
         
         mesh = self.generate_from_latent(c, stats_dict=stats_dict, **kwargs)
@@ -348,7 +348,7 @@ class Generator3D(object):
             else:
                 pi = pi.unsqueeze(0).to(self.device)
                 with torch.no_grad():
-                    occ_hat = self.model.decode(pi, c, **kwargs).logits
+                    occ_hat = self.model.decoder(pi, c, **kwargs).logits
                 occ_hats.append(occ_hat.squeeze(0).detach().cpu())
         
         occ_hat = torch.cat(occ_hats, dim=0)

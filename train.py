@@ -145,6 +145,7 @@ while True:
                      % (epoch_it, it, loss, time.time() - t0, t.hour, t.minute))
 
         # Visualize output
+        '''
         if visualize_every > 0 and (it % visualize_every) == 0:
             print('Visualizing')
             for data_vis in data_vis_list:
@@ -159,20 +160,25 @@ while True:
                     mesh, stats_dict = out, {}
 
                 mesh.export(os.path.join(out_dir, 'vis', '{}_{}_{}.off'.format(it, data_vis['category'], data_vis['it'])))
-
+        '''
 
         # Save checkpoint
+        
         if (checkpoint_every > 0 and (it % checkpoint_every) == 0):
             print('Saving checkpoint')
             checkpoint_io.save('model.pt', epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)
-
+        
+            
         # Backup if necessary
         if (backup_every > 0 and (it % backup_every) == 0):
             print('Backup checkpoint')
             checkpoint_io.save('model_%d.pt' % it, epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)
+        
+        
         # Run validation
+        '''
         if validate_every > 0 and (it % validate_every) == 0:
             eval_dict = trainer.evaluate(val_loader)
             metric_val = eval_dict[model_selection_metric]
@@ -187,7 +193,7 @@ while True:
                 print('New best model (loss %.4f)' % metric_val_best)
                 checkpoint_io.save('model_best.pt', epoch_it=epoch_it, it=it,
                                    loss_val_best=metric_val_best)
-
+        '''
         # Exit if necessary
         if exit_after > 0 and (time.time() - t0) >= exit_after:
             print('Time limit reached. Exiting.')

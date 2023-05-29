@@ -1,5 +1,4 @@
 import os
-from tqdm import trange
 import torch
 from torch.nn import functional as F
 from torch import distributions as dist
@@ -43,8 +42,24 @@ class Trainer(BaseTrainer):
             data (dict): data dictionary
         '''
         self.model.train()
+        
+        device = self.device
+        p = data.get('points').to(device)
+        occ = data.get('points.occ').to(device)
+        inputs = data.get('inputs', torch.empty(p.size(0), 0)).to(device)
+        
+        if 'pointcloud_crop' in data.keys():
+            # add pre-computed index
+            inputs = add_key(inputs, data.get('inputs.ind'), 'points', 'index', device=device)
+            inputs['mask'] = data.get('inputs.mask').to(device)
+            # add pre-computed normalized coordinates
+            p = add_key(p, data.get('points.normalized'), 'p', 'p_n', device=device)
+        
+        c = self.model.encoder(inputs)
+        mean = c['grid'][0]
+        std = c['grid'][1]
         self.optimizer.zero_grad()
-        loss = self.compute_loss(data)
+        loss = self.compute_loss(mean, std, p, c, occ)
         loss.backward()
         self.optimizer.step()
 
@@ -112,31 +127,19 @@ class Trainer(BaseTrainer):
 
         return eval_dict
 
-    def compute_loss(self, data):
-        ''' Computes the loss.
-
-        Args:
-            data (dict): data dictionary
-        '''
-        device = self.device
-        p = data.get('points').to(device)
-        occ = data.get('points.occ').to(device)
-        inputs = data.get('inputs', torch.empty(p.size(0), 0)).to(device)
-        
-        if 'pointcloud_crop' in data.keys():
-            # add pre-computed index
-            inputs = add_key(inputs, data.get('inputs.ind'), 'points', 'index', device=device)
-            inputs['mask'] = data.get('inputs.mask').to(device)
-            # add pre-computed normalized coordinates
-            p = add_key(p, data.get('points.normalized'), 'p', 'p_n', device=device)
-
-        c = self.model.encode_inputs(inputs)
+    def compute_loss(self, mean, std, p, c, occ):
 
         kwargs = {}
-        # General points
-        logits = self.model.decode(p, c, **kwargs).logits
-        loss_i = F.binary_cross_entropy_with_logits(
+        
+        # KL divergence loss
+        kl_loss = - 0.5 * torch.sum(1 + std - mean.pow(2) - std.exp())
+ 
+        # reconstruction loss
+        logits = self.model.decoder(p, c, **kwargs).logits
+        recon_loss = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none')
-        loss = loss_i.sum(-1).mean()
+        recon_loss = recon_loss.sum(-1).mean()
+        
+        loss = kl_loss + recon_loss
 
         return loss

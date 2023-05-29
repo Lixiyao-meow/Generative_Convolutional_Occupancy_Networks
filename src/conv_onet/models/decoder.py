@@ -46,7 +46,13 @@ class LocalDecoder(nn.Module):
 
         self.sample_mode = sample_mode
         self.padding = padding
-    
+
+        # VAE decoder
+        h_dim = 32 * 8 * 8 * 8
+        z_dim = 1024
+        self.decFC = nn.Linear(z_dim, h_dim)
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 8, 8, 8))
+        self.unsample = nn.Upsample(size=(32, 32, 32), mode='nearest')
 
     def sample_plane_feature(self, p, c, plane='xz'):
         xy = normalize_coordinate(p.clone(), plane=plane, padding=self.padding) # normalize to the range of (0, 1)
@@ -59,11 +65,26 @@ class LocalDecoder(nn.Module):
         p_nor = normalize_3d_coordinate(p.clone(), padding=self.padding) # normalize to the range of (0, 1)
         p_nor = p_nor[:, :, None, None].float()
         vgrid = 2.0 * p_nor - 1.0 # normalize to (-1, 1)
+
+        mean = c[0]
+        std = c[1]
+        z = self.reparametrization(mean, std)
+        
+        x = self.decFC(z)
+        x = self.unflatten(x)
+        x = self.unsample(x)
+
         # acutally trilinear interpolation if mode = 'bilinear'
-        c = F.grid_sample(c, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1).squeeze(-1)
-        return c
+        x = F.grid_sample(x, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1).squeeze(-1)
 
+        return x
 
+    def reparametrization(self, mean, std):
+        std = torch.exp(std/2)
+        eps = torch.randn_like(std)
+        z = mean + std * eps
+        return z
+    
     def forward(self, p, c_plane, **kwargs):
         if self.c_dim != 0:
             plane_type = list(c_plane.keys())
