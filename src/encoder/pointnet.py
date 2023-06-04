@@ -65,14 +65,22 @@ class LocalPoolPointnet(nn.Module):
         else:
             raise ValueError('incorrect scatter type')
         
-        # VAE encoder
-                
-        h_dim = 32 * 8 * 8 * 8
-        z_dim = 1024
-        self.global_pooling = nn.AdaptiveAvgPool3d(8)
-        self.flatten = nn.Flatten(start_dim=1)
-        self.encode_mean = nn.Linear(h_dim, z_dim)
-        self.encode_std = nn.Linear(h_dim, z_dim)
+        # VAE encoder for grid32 model
+        compress_size = 8
+        grid_h_dim = 32 * compress_size * compress_size * compress_size
+        grid_z_dim = 1024
+        self.global_pooling = nn.AdaptiveAvgPool3d(compress_size)
+        self.grid_flatten = nn.Flatten(start_dim=1)
+        self.grid_encode_mean = nn.Linear(grid_h_dim, grid_z_dim)
+        self.grid_encode_logVar = nn.Linear(grid_h_dim, grid_z_dim)
+
+        # VAE encoder for 3plane model
+        plane3_h_dim = 32 * 32 * 32
+        plane3_z_dim = 1024
+        self.plane3_global_pooling = nn.AdaptiveAvgPool3d(32)
+        self.plane3_flatten = nn.Flatten(start_dim=1)
+        self.plane3_encode_mean = nn.Linear(plane3_h_dim, plane3_z_dim)
+        self.plane3_encode_logVar = nn.Linear(plane3_h_dim, plane3_z_dim)
 
 
     def generate_plane_features(self, p, c, plane='xz'):
@@ -89,8 +97,13 @@ class LocalPoolPointnet(nn.Module):
         # process the plane features with UNet
         if self.unet is not None:
             fea_plane = self.unet(fea_plane)
-
-        return fea_plane
+        
+        x = self.plane3_global_pooling(fea_plane)
+        x = self.plane3_flatten(x)
+        mean = self.plane3_encode_mean(x)
+        logVar = self.plane3_encode_logVar(x)
+        
+        return mean, logVar #fea_plane
 
     def generate_grid_features(self, p, c):
         p_nor = normalize_3d_coordinate(p.clone(), padding=self.padding)
@@ -106,12 +119,11 @@ class LocalPoolPointnet(nn.Module):
         
         # VAE Gaussian distribution parameters
         x = self.global_pooling(fea_grid)
-        x = self.flatten(x)
+        x = self.grid_flatten(x)
+        mean = self.gird_encode_mean(x)
+        logVar = self.grid_encode_logVar(x)
         
-        mean = self.encode_mean(x)
-        std = self.encode_std(x)
-        
-        return mean, std #fea_grid
+        return mean, logVar #fea_grid
 
     def pool_local(self, xy, index, c):
         bs, fea_dim = c.size(0), c.size(2)

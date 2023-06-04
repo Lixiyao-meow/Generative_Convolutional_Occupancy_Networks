@@ -34,7 +34,7 @@ training:
   model_selection_mode: maximize
   print_every: 20
   visualize_every: 1000
-  validate_every: 100
+  validate_every: 200
   checkpoint_every: 200
   backup_every: 2000
   n_workers: 4

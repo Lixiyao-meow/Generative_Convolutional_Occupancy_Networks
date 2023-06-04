@@ -35,7 +35,7 @@ class Trainer(BaseTrainer):
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
 
-    def train_step(self, data):
+    def train_step(self, data, epoch):
         ''' Performs a training step.
 
         Args:
@@ -56,10 +56,18 @@ class Trainer(BaseTrainer):
             p = add_key(p, data.get('points.normalized'), 'p', 'p_n', device=device)
         
         c = self.model.encoder(inputs)
-        mean = c['grid'][0]
-        std = c['grid'][1]
+        
+        if 'grid' in c:
+            mean, logVar = c['grid'][0], c['grid'][1]
+        elif 'xz' in c:
+            mean, logVar = c['xz'][0], c['xz'][1]
+        elif 'xy' in c:
+            mean, logVar = c['xy'][0], c['xy'][1]
+        elif 'yz' in c:
+            mean, logVar = c['yz'][0], c['yz'][1]
+
         self.optimizer.zero_grad()
-        loss = self.compute_loss(mean, std, p, c, occ)
+        loss = self.compute_loss(mean, logVar, p, c, occ, epoch)
         loss.backward()
         self.optimizer.step()
 
@@ -127,19 +135,22 @@ class Trainer(BaseTrainer):
 
         return eval_dict
 
-    def compute_loss(self, mean, std, p, c, occ):
+    def compute_loss(self, mean, logVar, p, c, occ, epoch):
 
         kwargs = {}
         
         # KL divergence loss
-        kl_loss = - 0.5 * torch.sum(1 + std - mean.pow(2) - std.exp())
+        kl_loss = - 0.5 * torch.sum(1 + logVar - mean.pow(2) - logVar.exp())
  
         # reconstruction loss
         logits = self.model.decoder(p, c, **kwargs).logits
         recon_loss = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none')
         recon_loss = recon_loss.sum(-1).mean()
-        
-        loss = kl_loss + recon_loss
+
+        # TODO: add warmup for weight of kl_loss, e.g. kl_loss is zero from begining
+        # TODO: 
+        alpha = min((1.0/100) * epoch, 1.0)
+        loss = alpha * kl_loss + recon_loss
 
         return loss

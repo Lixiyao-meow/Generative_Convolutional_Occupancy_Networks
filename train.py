@@ -135,7 +135,7 @@ while True:
 
     for batch in train_loader:
         it += 1
-        loss = trainer.train_step(batch)
+        loss = trainer.train_step(batch, epoch_it)
         logger.add_scalar('train/loss', loss, it)
 
         # Print output
@@ -178,7 +178,6 @@ while True:
         
         
         # Run validation
-        '''
         if validate_every > 0 and (it % validate_every) == 0:
             eval_dict = trainer.evaluate(val_loader)
             metric_val = eval_dict[model_selection_metric]
@@ -193,10 +192,10 @@ while True:
                 print('New best model (loss %.4f)' % metric_val_best)
                 checkpoint_io.save('model_best.pt', epoch_it=epoch_it, it=it,
                                    loss_val_best=metric_val_best)
-        '''
-        # Exit if necessary
-        if exit_after > 0 and (time.time() - t0) >= exit_after:
-            print('Time limit reached. Exiting.')
+        
+        # Exit until epoch 200
+        if epoch_it == 50:
+            print('Epoch limitation reached')
             checkpoint_io.save('model.pt', epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)
             exit(3)

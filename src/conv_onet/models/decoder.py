@@ -47,19 +47,38 @@ class LocalDecoder(nn.Module):
         self.sample_mode = sample_mode
         self.padding = padding
 
-        # VAE decoder
-        h_dim = 32 * 8 * 8 * 8
-        z_dim = 1024
-        self.decFC = nn.Linear(z_dim, h_dim)
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 8, 8, 8))
-        self.unsample = nn.Upsample(size=(32, 32, 32), mode='nearest')
+        # VAE decoder for grid32 model
+        compress_size = 8
+        grid_h_dim = 32 * compress_size * compress_size * compress_size
+        grid_z_dim = 1024
+        self.grid_decFC = nn.Linear(grid_z_dim, grid_h_dim)
+        self.grid_unflatten = nn.Unflatten(dim=1, unflattened_size=(32, compress_size, compress_size, compress_size))
+        self.gird_upsample = nn.Upsample(size=(32, 32, 32), mode='trilinear')
+
+        # VAE decoder for 3plane model
+        plane3_h_dim = 32 * 32 * 32
+        plane3_z_dim = 1024
+        self.plane3_decFC = nn.Linear(plane3_z_dim, plane3_h_dim)
+        self.plane3_unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 32, 32))
+        self.plane3_upsample = nn.Upsample(size=(64, 64), mode='bilinear')
+
 
     def sample_plane_feature(self, p, c, plane='xz'):
         xy = normalize_coordinate(p.clone(), plane=plane, padding=self.padding) # normalize to the range of (0, 1)
         xy = xy[:, :, None].float()
         vgrid = 2.0 * xy - 1.0 # normalize to (-1, 1)
-        c = F.grid_sample(c, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1)
-        return c
+
+        mean = c[0]
+        logVar = c[1]
+        z = self.reparametrization(mean, logVar)
+        
+        x = self.plane3_decFC(z)
+        x = self.plane3_unflatten(x)
+        x = self.plane3_upsample(x)
+        
+        x = F.grid_sample(x, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1)
+        
+        return x
 
     def sample_grid_feature(self, p, c):
         p_nor = normalize_3d_coordinate(p.clone(), padding=self.padding) # normalize to the range of (0, 1)
@@ -67,20 +86,20 @@ class LocalDecoder(nn.Module):
         vgrid = 2.0 * p_nor - 1.0 # normalize to (-1, 1)
 
         mean = c[0]
-        std = c[1]
-        z = self.reparametrization(mean, std)
+        logVar = c[1]
+        z = self.reparametrization(mean, logVar)
         
-        x = self.decFC(z)
-        x = self.unflatten(x)
-        x = self.unsample(x)
+        x = self.grid_decFC(z)
+        x = self.grid_unflatten(x)
+        x = self.grid_upsample(x)
 
         # acutally trilinear interpolation if mode = 'bilinear'
         x = F.grid_sample(x, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1).squeeze(-1)
 
         return x
 
-    def reparametrization(self, mean, std):
-        std = torch.exp(std/2)
+    def reparametrization(self, mean, logVar):
+        std = torch.exp(logVar/2)
         eps = torch.randn_like(std)
         z = mean + std * eps
         return z

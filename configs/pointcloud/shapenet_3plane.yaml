@@ -27,15 +27,15 @@ model:
   c_dim: 32
 training:
   out_dir: out/pointcloud/shapenet_3plane
-  batch_size: 32
+  batch_size: 8 #32
   model_selection_metric: iou
   model_selection_mode: maximize
-  print_every: 1000
-  visualize_every: 10000
-  validate_every: 10000
-  checkpoint_every: 2000
-  backup_every: 10000
-  n_workers: 8
+  print_every: 20
+  visualize_every: 1000
+  validate_every: 200
+  checkpoint_every: 200
+  backup_every: 2000
+  n_workers: 4
   n_workers_val: 4
 test:
   threshold: 0.2
