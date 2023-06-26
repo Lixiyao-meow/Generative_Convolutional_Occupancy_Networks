@@ -145,7 +145,6 @@ while True:
                      % (epoch_it, it, loss, time.time() - t0, t.hour, t.minute))
 
         # Visualize output
-        '''
         if visualize_every > 0 and (it % visualize_every) == 0:
             print('Visualizing')
             for data_vis in data_vis_list:
@@ -160,7 +159,6 @@ while True:
                     mesh, stats_dict = out, {}
 
                 mesh.export(os.path.join(out_dir, 'vis', '{}_{}_{}.off'.format(it, data_vis['category'], data_vis['it'])))
-        '''
 
         # Save checkpoint
         
@@ -193,8 +191,8 @@ while True:
                 checkpoint_io.save('model_best.pt', epoch_it=epoch_it, it=it,
                                    loss_val_best=metric_val_best)
         
-        # Exit until epoch 200
-        if epoch_it == 50:
+        # Exit until epoch number
+        if epoch_it >= 2000:
             print('Epoch limitation reached')
             checkpoint_io.save('model.pt', epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)

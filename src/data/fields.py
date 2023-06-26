@@ -300,7 +300,7 @@ class PointCloudField(Field):
 
         points = pointcloud_dict['points'].astype(np.float32)
         normals = pointcloud_dict['normals'].astype(np.float32)
-        
+                
         data = {
             None: points,
             'normals': normals,
