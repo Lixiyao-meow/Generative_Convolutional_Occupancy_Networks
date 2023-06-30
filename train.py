@@ -104,7 +104,7 @@ trainer = config.get_trainer(model, optimizer, cfg, device=device)
 
 checkpoint_io = CheckpointIO(out_dir, model=model, optimizer=optimizer)
 try:
-    load_dict = checkpoint_io.load('model.pt')
+    load_dict = checkpoint_io.load('model_best.pt')
 except FileExistsError:
     load_dict = dict()
 epoch_it = load_dict.get('epoch_it', 0)
@@ -151,7 +151,7 @@ while True:
                 if cfg['generation']['sliding_window']:
                     out = generator.generate_mesh_sliding(data_vis['data'])    
                 else:
-                    out = generator.generate_mesh(data_vis['data'])
+                    out = generator.generate_mesh(data_vis['data'], epoch_it)
                 # Get statistics
                 try:
                     mesh, stats_dict = out
@@ -177,7 +177,7 @@ while True:
         
         # Run validation
         if validate_every > 0 and (it % validate_every) == 0:
-            eval_dict = trainer.evaluate(val_loader)
+            eval_dict = trainer.evaluate(val_loader, epoch_it)
             metric_val = eval_dict[model_selection_metric]
             print('Validation metric (%s): %.4f'
                   % (model_selection_metric, metric_val))

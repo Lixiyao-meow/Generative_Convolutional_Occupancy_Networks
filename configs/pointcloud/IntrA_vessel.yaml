@@ -26,14 +26,14 @@ model:
     hidden_size: 32
   c_dim: 32
 training:
-  out_dir: out/IntrA_6.25/
+  out_dir: out/IntrA_6.30/
   batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
   print_every: 50
-  visualize_every: 5000
+  visualize_every: 2500
   validate_every: 100
-  checkpoint_every: 1000
+  checkpoint_every: 200
   backup_every: 1000
   n_workers: 4
   n_workers_val: 4

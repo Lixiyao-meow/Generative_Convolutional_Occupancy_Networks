@@ -62,7 +62,7 @@ class Generator3D(object):
         if vol_info is not None:
             self.input_vol, _, _ = vol_info
         
-    def generate_mesh(self, data, return_stats=True):
+    def generate_mesh(self, data, epoch, return_stats=True):
         ''' Generates the output mesh.
 
         Args:
@@ -89,14 +89,14 @@ class Generator3D(object):
                 c = self.model.encoder(inputs)
         stats_dict['time (encode inputs)'] = time.time() - t0
         
-        mesh = self.generate_from_latent(c, stats_dict=stats_dict, **kwargs)
+        mesh = self.generate_from_latent(c, epoch, stats_dict=stats_dict, **kwargs)
 
         if return_stats:
             return mesh, stats_dict
         else:
             return mesh
     
-    def generate_from_latent(self, c=None, stats_dict={}, **kwargs):
+    def generate_from_latent(self, epoch, c=None, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
             Works for shapes normalized to a unit cube
 
@@ -131,7 +131,7 @@ class Generator3D(object):
                 pointsf = box_size * (pointsf - 0.5)
                 pointsf = torch.FloatTensor(pointsf).to(self.device)
                 # Evaluate model and update
-                values = self.eval_points(pointsf, c, **kwargs).cpu().numpy()
+                values = self.eval_points(pointsf, c, epoch, **kwargs).cpu().numpy()
                 values = values.astype(np.float64)
                 mesh_extractor.update(points, values)
                 points = mesh_extractor.query()
@@ -320,7 +320,7 @@ class Generator3D(object):
         
         return occ_hat
 
-    def eval_points(self, p, c=None, vol_bound=None, **kwargs):
+    def eval_points(self, p, epoch, c=None, vol_bound=None, **kwargs):
         ''' Evaluates the occupancy values for the points.
 
         Args:
@@ -348,7 +348,7 @@ class Generator3D(object):
             else:
                 pi = pi.unsqueeze(0).to(self.device)
                 with torch.no_grad():
-                    occ_hat = self.model.decoder(pi, c, **kwargs).logits
+                    occ_hat = self.model.decoder(pi, c, epoch, **kwargs).logits
                 occ_hats.append(occ_hat.squeeze(0).detach().cpu())
         
         occ_hat = torch.cat(occ_hats, dim=0)

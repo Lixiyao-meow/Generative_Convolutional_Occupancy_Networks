@@ -63,14 +63,14 @@ class LocalDecoder(nn.Module):
         self.plane3_upsample = nn.Upsample(size=(64, 64), mode='bilinear')
 
 
-    def sample_plane_feature(self, p, c, plane='xz'):
+    def sample_plane_feature(self, p, c, epoch, plane='xz'):
         xy = normalize_coordinate(p.clone(), plane=plane, padding=self.padding) # normalize to the range of (0, 1)
         xy = xy[:, :, None].float()
         vgrid = 2.0 * xy - 1.0 # normalize to (-1, 1)
 
         mean = c[0]
         logVar = c[1]
-        z = self.reparametrization(mean, logVar)
+        z = self.reparametrization(mean, logVar, epoch)
         
         x = self.plane3_decFC(z)
         x = self.plane3_unflatten(x)
@@ -98,24 +98,27 @@ class LocalDecoder(nn.Module):
 
         return x
 
-    def reparametrization(self, mean, logVar):
+    def reparametrization(self, mean, logVar, epoch):
         std = torch.exp(logVar/2)
-        eps = torch.randn_like(std)
+        if epoch < 100:
+            eps = 0
+        else:
+            eps = 0.1 * torch.randn_like(std)
         z = mean + std * eps
         return z
     
-    def forward(self, p, c_plane, **kwargs):
+    def forward(self, p, c_plane, epoch, **kwargs):
         if self.c_dim != 0:
             plane_type = list(c_plane.keys())
             c = 0
             if 'grid' in plane_type:
                 c += self.sample_grid_feature(p, c_plane['grid'])
             if 'xz' in plane_type:
-                c += self.sample_plane_feature(p, c_plane['xz'], plane='xz')
+                c += self.sample_plane_feature(p, c_plane['xz'], epoch, plane='xz')
             if 'xy' in plane_type:
-                c += self.sample_plane_feature(p, c_plane['xy'], plane='xy')
+                c += self.sample_plane_feature(p, c_plane['xy'], epoch, plane='xy')
             if 'yz' in plane_type:
-                c += self.sample_plane_feature(p, c_plane['yz'], plane='yz')
+                c += self.sample_plane_feature(p, c_plane['yz'], epoch, plane='yz')
             c = c.transpose(1, 2)
 
         p = p.float()

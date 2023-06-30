@@ -73,7 +73,7 @@ class Trainer(BaseTrainer):
 
         return loss.item()
     
-    def eval_step(self, data):
+    def eval_step(self, data, epoch):
         ''' Performs an evaluation step.
 
         Args:
@@ -106,7 +106,7 @@ class Trainer(BaseTrainer):
 
         # Compute iou
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs, 
+            p_out = self.model(points_iou, inputs, epoch,
                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -143,13 +143,19 @@ class Trainer(BaseTrainer):
         kl_loss = - 0.5 * torch.sum(1 + logVar - mean.pow(2) - logVar.exp())
  
         # reconstruction loss
-        logits = self.model.decoder(p, c, **kwargs).logits
+        logits = self.model.decoder(p, c, epoch, **kwargs).logits
         recon_loss = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none')
         recon_loss = recon_loss.sum(-1).mean()
 
         # add warmup for weight of kl_loss, e.g. kl_loss is zero from begining 
-        alpha = min((1.0/100) * epoch, 1.0)
+        if epoch < 100:
+            alpha = 0
+        else:
+            alpha = min((1.0/800) * (epoch-100), 1.0)
+        #print("alpha: ", alpha)
+        #print("kl loss: ", alpha * kl_loss)
+        #print("recon loss: ", recon_loss)
         loss = alpha * kl_loss + recon_loss
 
         return loss

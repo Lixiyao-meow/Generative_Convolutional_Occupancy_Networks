@@ -145,7 +145,7 @@ for it, data in enumerate(tqdm(test_loader)):
                 print('Process scenes in a sliding-window manner')
             out = generator.generate_mesh_sliding(data)
         else:
-            out = generator.generate_mesh(data)
+            out = generator.generate_mesh(data, 200)
         time_dict['mesh'] = time.time() - t0
 
         # Get statistics
