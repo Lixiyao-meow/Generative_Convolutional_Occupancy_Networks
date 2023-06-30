@@ -148,8 +148,7 @@ class Trainer(BaseTrainer):
             logits, occ, reduction='none')
         recon_loss = recon_loss.sum(-1).mean()
 
-        # TODO: add warmup for weight of kl_loss, e.g. kl_loss is zero from begining
-        # TODO: 
+        # add warmup for weight of kl_loss, e.g. kl_loss is zero from begining 
         alpha = min((1.0/100) * epoch, 1.0)
         loss = alpha * kl_loss + recon_loss
 

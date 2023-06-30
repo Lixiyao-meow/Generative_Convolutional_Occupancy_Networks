@@ -26,7 +26,7 @@ model:
     hidden_size: 32
   c_dim: 32
 training:
-  out_dir: out/IntrA/vessel/
+  out_dir: out/IntrA_6.25/
   batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
