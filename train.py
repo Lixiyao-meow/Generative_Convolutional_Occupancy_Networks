@@ -104,7 +104,7 @@ trainer = config.get_trainer(model, optimizer, cfg, device=device)
 
 checkpoint_io = CheckpointIO(out_dir, model=model, optimizer=optimizer)
 try:
-    load_dict = checkpoint_io.load('model_best.pt')
+    load_dict = checkpoint_io.load('model.pt')
 except FileExistsError:
     load_dict = dict()
 epoch_it = load_dict.get('epoch_it', 0)
@@ -130,12 +130,15 @@ print('Total number of parameters: %d' % nparameters)
 
 print('output path: ', cfg['training']['out_dir'])
 
+# start to add kl loss and noise
+start_epoch = 0
+
 while True:
     epoch_it += 1
 
     for batch in train_loader:
         it += 1
-        loss = trainer.train_step(batch, epoch_it)
+        loss = trainer.train_step(batch, start_epoch, epoch_it)
         logger.add_scalar('train/loss', loss, it)
 
         # Print output
@@ -151,7 +154,7 @@ while True:
                 if cfg['generation']['sliding_window']:
                     out = generator.generate_mesh_sliding(data_vis['data'])    
                 else:
-                    out = generator.generate_mesh(data_vis['data'], epoch_it)
+                    out = generator.generate_mesh(data_vis['data'], start_epoch, epoch_it)
                 # Get statistics
                 try:
                     mesh, stats_dict = out
@@ -161,7 +164,6 @@ while True:
                 mesh.export(os.path.join(out_dir, 'vis', '{}_{}_{}.off'.format(it, data_vis['category'], data_vis['it'])))
 
         # Save checkpoint
-        
         if (checkpoint_every > 0 and (it % checkpoint_every) == 0):
             print('Saving checkpoint')
             checkpoint_io.save('model.pt', epoch_it=epoch_it, it=it,
@@ -177,7 +179,7 @@ while True:
         
         # Run validation
         if validate_every > 0 and (it % validate_every) == 0:
-            eval_dict = trainer.evaluate(val_loader, epoch_it)
+            eval_dict = trainer.evaluate(val_loader, start_epoch, epoch_it)
             metric_val = eval_dict[model_selection_metric]
             print('Validation metric (%s): %.4f'
                   % (model_selection_metric, metric_val))

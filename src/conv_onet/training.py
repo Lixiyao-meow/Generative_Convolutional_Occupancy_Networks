@@ -35,7 +35,7 @@ class Trainer(BaseTrainer):
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
 
-    def train_step(self, data, epoch):
+    def train_step(self, data, start_epoch, epoch):
         ''' Performs a training step.
 
         Args:
@@ -67,13 +67,13 @@ class Trainer(BaseTrainer):
             mean, logVar = c['yz'][0], c['yz'][1]
 
         self.optimizer.zero_grad()
-        loss = self.compute_loss(mean, logVar, p, c, occ, epoch)
+        loss = self.compute_loss(mean, logVar, p, c, occ, start_epoch, epoch)
         loss.backward()
         self.optimizer.step()
 
         return loss.item()
     
-    def eval_step(self, data, epoch):
+    def eval_step(self, data, start_epoch, epoch):
         ''' Performs an evaluation step.
 
         Args:
@@ -106,7 +106,7 @@ class Trainer(BaseTrainer):
 
         # Compute iou
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs, epoch,
+            p_out = self.model(points_iou, inputs, start_epoch, epoch,
                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -135,7 +135,7 @@ class Trainer(BaseTrainer):
 
         return eval_dict
 
-    def compute_loss(self, mean, logVar, p, c, occ, epoch):
+    def compute_loss(self, mean, logVar, p, c, occ, start_epoch, epoch):
 
         kwargs = {}
         
@@ -143,17 +143,16 @@ class Trainer(BaseTrainer):
         kl_loss = - 0.5 * torch.sum(1 + logVar - mean.pow(2) - logVar.exp())
  
         # reconstruction loss
-        logits = self.model.decoder(p, c, epoch, **kwargs).logits
+        logits = self.model.decoder(p, c, start_epoch, epoch, **kwargs).logits
         recon_loss = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none')
         recon_loss = recon_loss.sum(-1).mean()
 
         # add warmup for weight of kl_loss, e.g. kl_loss is zero from begining 
-        if epoch < 100:
+        if epoch < start_epoch:
             alpha = 0
         else:
-            alpha = min((1.0/800) * (epoch-100), 1.0)
-        #print("alpha: ", alpha)
+            alpha = min((1.0/800) * (epoch-start_epoch), 1.0)
         #print("kl loss: ", alpha * kl_loss)
         #print("recon loss: ", recon_loss)
         loss = alpha * kl_loss + recon_loss

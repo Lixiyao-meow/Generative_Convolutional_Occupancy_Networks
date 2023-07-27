@@ -27,7 +27,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         self.encode = encoder.to(device)
         self.decode = decoder.to(device)
 
-    def forward(self, p, inputs, epoch, sample=True, **kwargs):
+    def forward(self, p, inputs, start_epoch, epoch, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
 
         Args:
@@ -36,7 +36,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
             sample (bool): whether to sample for z
         '''
         c = self.encoder(inputs)
-        p_r = self.decoder(p, c, epoch, **kwargs)
+        p_r = self.decoder(p, c, start_epoch, epoch, **kwargs)
         return p_r
 
     def encoder(self, inputs):
@@ -47,7 +47,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         '''
         return self.encode(inputs)
 
-    def decoder(self, p, c, epoch, **kwargs):
+    def decoder(self, p, c, start_epoch, epoch, **kwargs):
         ''' Returns occupancy probabilities for the sampled points.
 
         Args:
@@ -55,6 +55,6 @@ class ConvolutionalOccupancyNetwork(nn.Module):
             c (tensor): latent conditioned code c
         '''
 
-        logits = self.decode(p, c, epoch, **kwargs)
+        logits = self.decode(p, c, start_epoch, epoch, **kwargs)
         p_r = dist.Bernoulli(logits=logits)
         return p_r
