@@ -30,7 +30,7 @@ class LocalPoolPointnet(nn.Module):
 
     def __init__(self, c_dim=128, dim=3, hidden_dim=128, scatter_type='max', 
                  unet=False, unet_kwargs=None, unet3d=False, unet3d_kwargs=None, 
-                 plane_resolution=None, grid_resolution=None, plane_type='xz', padding=0.1, n_blocks=5):
+                 plane_resolution=32, grid_resolution=32, plane_type='xz', padding=0.1, n_blocks=5):
         super().__init__()
         self.c_dim = c_dim
 
@@ -66,21 +66,21 @@ class LocalPoolPointnet(nn.Module):
             raise ValueError('incorrect scatter type')
         
         # VAE encoder for grid32 model
-        compress_size = 8
-        grid_h_dim = 32 * compress_size * compress_size * compress_size
-        grid_z_dim = 1024
-        self.global_pooling = nn.AdaptiveAvgPool3d(compress_size)
-        self.grid_flatten = nn.Flatten(start_dim=1)
-        self.grid_encode_mean = nn.Linear(grid_h_dim, grid_z_dim)
-        self.grid_encode_logVar = nn.Linear(grid_h_dim, grid_z_dim)
-
+        if self.plane_type == 'grid':
+            grid_z_dim = 1024
+            
+            grid_h_dim = self.c_dim * self.reso_grid * self.reso_grid * self.reso_grid
+            self.grid_flatten = nn.Flatten(start_dim=1)
+            self.grid_encode_mean = nn.Linear(grid_h_dim, grid_z_dim)
+            self.grid_encode_logVar = nn.Linear(grid_h_dim, grid_z_dim)
+        
         # VAE encoder for 3plane model
-        plane3_h_dim = 32 * 32 * 32
-        plane3_z_dim = 1024
-        self.plane3_global_pooling = nn.AdaptiveAvgPool3d(32)
-        self.plane3_flatten = nn.Flatten(start_dim=1)
-        self.plane3_encode_mean = nn.Linear(plane3_h_dim, plane3_z_dim)
-        self.plane3_encode_logVar = nn.Linear(plane3_h_dim, plane3_z_dim)
+        if self.plane_type == ['xz', 'xy', 'yz']:
+            plane3_h_dim = self.c_dim * self.reso_plane * self.reso_plane
+            plane3_z_dim = 1024
+            self.plane3_flatten = nn.Flatten(start_dim=1)
+            self.plane3_encode_mean = nn.Linear(plane3_h_dim, plane3_z_dim)
+            self.plane3_encode_logVar = nn.Linear(plane3_h_dim, plane3_z_dim)
 
 
     def generate_plane_features(self, p, c, plane='xz'):
@@ -98,8 +98,7 @@ class LocalPoolPointnet(nn.Module):
         if self.unet is not None:
             fea_plane = self.unet(fea_plane)
         
-        x = self.plane3_global_pooling(fea_plane)
-        x = self.plane3_flatten(x)
+        x = self.plane3_flatten(fea_plane)
         mean = self.plane3_encode_mean(x)
         logVar = self.plane3_encode_logVar(x)
         
@@ -118,9 +117,8 @@ class LocalPoolPointnet(nn.Module):
             fea_grid = self.unet3d(fea_grid)
         
         # VAE Gaussian distribution parameters
-        x = self.global_pooling(fea_grid)
-        x = self.grid_flatten(x)
-        mean = self.gird_encode_mean(x)
+        x = self.grid_flatten(fea_grid)
+        mean = self.grid_encode_mean(x)
         logVar = self.grid_encode_logVar(x)
         
         return mean, logVar #fea_grid

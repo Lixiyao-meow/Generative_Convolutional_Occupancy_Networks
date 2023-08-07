@@ -2,9 +2,9 @@ method: conv_onet
 data:
   input_type: pointcloud
   classes: null
-  path: data/IntrA
+  path: data/augmented_IntrA
   pointcloud_n: 3000
-  pointcloud_noise: 0.05
+  pointcloud_noise: 0.005
   points_subsample: 2048
   points_file: points.npz
   points_iou_file: points.npz
@@ -14,7 +14,7 @@ model:
   encoder_kwargs:
     hidden_dim: 16
     plane_type: ['xz', 'xy', 'yz']
-    plane_resolution: 64
+    plane_resolution: 32
     unet: True
     unet_kwargs:
       depth: 4
@@ -22,18 +22,20 @@ model:
       start_filts: 32
   decoder: simple_local
   decoder_kwargs:
+    plane_type: ['xz', 'xy', 'yz']
+    plane_resolution: 32
     sample_mode: bilinear # bilinear / nearest
-    hidden_size: 32
+    hidden_size: 16
   c_dim: 32
 training:
-  out_dir: out/IntrA_7.27/
+  out_dir: out/IntrA_test/
   batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
-  print_every: 200
+  print_every: 50
   visualize_every: 2500
   validate_every: 100
-  checkpoint_every: 2000
+  checkpoint_every: 200
   backup_every: 10000
   n_workers: 4
   n_workers_val: 4

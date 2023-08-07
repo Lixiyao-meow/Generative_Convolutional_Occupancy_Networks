@@ -15,7 +15,7 @@ model:
   encoder_kwargs:
     hidden_dim: 32
     plane_type: 'grid'
-    grid_resolution: 32
+    grid_resolution: 8
     unet3d: True
     unet3d_kwargs:
       num_levels: 3
@@ -25,11 +25,13 @@ model:
   decoder: simple_local      
   decoder_kwargs:
     sample_mode: bilinear # bilinear / nearest
+    plane_type: 'grid'
+    grid_resolution: 8
     hidden_size: 32
   c_dim: 32
 training:
-  out_dir: out/VAE #pointcloud/shapenet_grid32
-  batch_size: 32
+  out_dir: out/test_grid32
+  batch_size: 8
   model_selection_metric: iou
   model_selection_mode: maximize
   print_every: 20

@@ -147,14 +147,13 @@ class Trainer(BaseTrainer):
         recon_loss = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none')
         recon_loss = recon_loss.sum(-1).mean()
-
+        
         # add warmup for weight of kl_loss, e.g. kl_loss is zero from begining 
         if epoch < start_epoch:
             alpha = 0
         else:
-            alpha = min((1.0/800) * (epoch-start_epoch), 1.0)
-        #print("kl loss: ", alpha * kl_loss)
-        #print("recon loss: ", recon_loss)
+            alpha = min((1.0/100) * (epoch-start_epoch), 1.0)
+        
         loss = alpha * kl_loss + recon_loss
 
         return loss

@@ -20,7 +20,7 @@ class LocalDecoder(nn.Module):
     '''
 
     def __init__(self, dim=3, c_dim=128,
-                 hidden_size=256, n_blocks=5, leaky=False, sample_mode='bilinear', padding=0.1):
+                 hidden_size=256, n_blocks=5, plane_type=None, plane_resolution=32, grid_resolution=32, leaky=False, sample_mode='bilinear', padding=0.1):
         super().__init__()
         self.c_dim = c_dim
         self.n_blocks = n_blocks
@@ -47,21 +47,21 @@ class LocalDecoder(nn.Module):
         self.sample_mode = sample_mode
         self.padding = padding
 
+        self.plane_type = plane_type
+        
         # VAE decoder for grid32 model
-        compress_size = 8
-        grid_h_dim = 32 * compress_size * compress_size * compress_size
-        grid_z_dim = 1024
-        self.grid_decFC = nn.Linear(grid_z_dim, grid_h_dim)
-        self.grid_unflatten = nn.Unflatten(dim=1, unflattened_size=(32, compress_size, compress_size, compress_size))
-        self.gird_upsample = nn.Upsample(size=(32, 32, 32), mode='trilinear')
+        if self.plane_type == 'grid':
+            grid_h_dim = self.c_dim * grid_resolution * grid_resolution * grid_resolution
+            grid_z_dim = 1024
+            self.grid_decFC = nn.Linear(grid_z_dim, grid_h_dim)
+            self.grid_unflatten = nn.Unflatten(dim=1, unflattened_size=(c_dim, grid_resolution, grid_resolution, grid_resolution))
 
         # VAE decoder for 3plane model
-        plane3_h_dim = 32 * 32 * 32
-        plane3_z_dim = 1024
-        self.plane3_decFC = nn.Linear(plane3_z_dim, plane3_h_dim)
-        self.plane3_unflatten = nn.Unflatten(dim=1, unflattened_size=(32, 32, 32))
-        self.plane3_upsample = nn.Upsample(size=(64, 64), mode='bilinear')
-
+        if self.plane_type == ['xz', 'xy', 'yz']:
+            plane3_z_dim = 1024
+            plane3_h_dim = self.c_dim * plane_resolution * plane_resolution
+            self.plane3_decFC = nn.Linear(plane3_z_dim, plane3_h_dim)
+            self.plane3_unflatten = nn.Unflatten(dim=1, unflattened_size=(c_dim, plane_resolution, plane_resolution))
 
     def sample_plane_feature(self, p, c, start_epoch, epoch, plane='xz'):
         xy = normalize_coordinate(p.clone(), plane=plane, padding=self.padding) # normalize to the range of (0, 1)
@@ -74,24 +74,22 @@ class LocalDecoder(nn.Module):
         
         x = self.plane3_decFC(z)
         x = self.plane3_unflatten(x)
-        x = self.plane3_upsample(x)
         
         x = F.grid_sample(x, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1)
         
         return x
 
-    def sample_grid_feature(self, p, c):
+    def sample_grid_feature(self, p, c, start_epoch, epoch):
         p_nor = normalize_3d_coordinate(p.clone(), padding=self.padding) # normalize to the range of (0, 1)
         p_nor = p_nor[:, :, None, None].float()
         vgrid = 2.0 * p_nor - 1.0 # normalize to (-1, 1)
 
         mean = c[0]
         logVar = c[1]
-        z = self.reparametrization(mean, logVar)
+        z = self.reparametrization(mean, logVar, start_epoch, epoch)
         
         x = self.grid_decFC(z)
         x = self.grid_unflatten(x)
-        x = self.grid_upsample(x)
 
         # acutally trilinear interpolation if mode = 'bilinear'
         x = F.grid_sample(x, vgrid, padding_mode='border', align_corners=True, mode=self.sample_mode).squeeze(-1).squeeze(-1)
@@ -100,11 +98,8 @@ class LocalDecoder(nn.Module):
 
     def reparametrization(self, mean, logVar, start_epoch, epoch):
         std = torch.exp(logVar/2)
-        if epoch < start_epoch:
-            eps = 0
-        else:
-            eps = torch.randn_like(std)
-            
+        # eps = 0.05 * torch.randn_like(std) 
+        eps = torch.randn_like(std) 
         z = mean + std * eps
         return z
     
@@ -113,7 +108,7 @@ class LocalDecoder(nn.Module):
             plane_type = list(c_plane.keys())
             c = 0
             if 'grid' in plane_type:
-                c += self.sample_grid_feature(p, c_plane['grid'])
+                c += self.sample_grid_feature(p, c_plane['grid'], start_epoch, epoch)
             if 'xz' in plane_type:
                 c += self.sample_plane_feature(p, c_plane['xz'], start_epoch, epoch, plane='xz')
             if 'xy' in plane_type:
