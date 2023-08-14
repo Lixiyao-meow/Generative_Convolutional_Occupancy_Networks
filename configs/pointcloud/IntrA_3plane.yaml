@@ -28,7 +28,7 @@ model:
     hidden_size: 16
   c_dim: 32
 training:
-  out_dir: out/IntrA_test/
+  out_dir: out/IntrA_VAE/
   batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
