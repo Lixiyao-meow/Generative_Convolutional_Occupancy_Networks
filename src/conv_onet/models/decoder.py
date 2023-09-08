@@ -98,8 +98,7 @@ class LocalDecoder(nn.Module):
 
     def reparametrization(self, mean, logVar, start_epoch, epoch):
         std = torch.exp(logVar/2)
-        # eps = 0.05 * torch.randn_like(std) 
-        eps = torch.randn_like(std) 
+        eps = 0.05 * torch.randn_like(std)
         z = mean + std * eps
         return z
     
