@@ -1,6 +1,6 @@
 # Generatice Convolutional Occupancy Networks
 
-Our project aims to generate synthetic 3D data using a Variational Autoencoder. 
+Our project aims to generate 3D synthetic data using a Variational Autoencoder. 
 
 We build upon the [Convolutional Occupancy Netwrok](https://github.com/autonomousvision/convolutional_occupancy_networks) framework, which is proficient at detailed 3D reconstruction, ranging from individual objects to entire 3D scenes. However, the original framework produces deterministic results. In our project, we extend it with a Bayesian probabilistic approach. This extension allows our model to generate synthetic 3D data with variability. You can find more details in the accompanying report within this repository.
 
